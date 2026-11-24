@@ -6,8 +6,8 @@
 
 ### Ultra-Fast, Native Vector SVG & SVGZ Desktop Viewer
 
-[![CI](https://github.com/vaibhav-upadhyay/SvagView/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav-upadhyay/SvagView/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/vaibhav-upadhyay/SvagView?include_prereleases&style=flat-square)](https://github.com/vaibhav-upadhyay/SvagView/releases)
+[![CI](https://github.com/DoctorLestrange/SvagView/actions/workflows/ci.yml/badge.svg)](https://github.com/DoctorLestrange/SvagView/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/DoctorLestrange/SvagView?include_prereleases&style=flat-square)](https://github.com/DoctorLestrange/SvagView/releases)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg?style=flat-square)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg?style=flat-square)]()
@@ -131,26 +131,26 @@ Automatically scans the operating system on launch and displays dedicated quick-
 
 ## 📥 Installation & Downloads
 
-Pre-compiled packages and installers are available directly on the [GitHub Releases](https://github.com/vaibhav-upadhyay/SvagView/releases) page for version **v0.1.0**:
+Pre-compiled packages and installers are available directly on the [GitHub Releases](https://github.com/DoctorLestrange/SvagView/releases) page for version **v0.1.0**:
 
 ### 🪟 Windows (x86_64)
-- **Windows Setup Installer (Recommended)**: [`svagview-v0.1.0-windows-setup.exe`](https://github.com/vaibhav-upadhyay/SvagView/releases)  
+- **Windows Setup Installer (Recommended)**: [`svagview-v0.1.0-windows-setup.exe`](https://github.com/DoctorLestrange/SvagView/releases)  
   *Full Windows installation wizard with Start Menu shortcut, optional Desktop icon, and automatic `.svg` / `.svgz` file associations.*
-- **Portable ZIP**: [`svagview-v0.1.0-windows-x86_64.zip`](https://github.com/vaibhav-upadhyay/SvagView/releases)  
+- **Portable ZIP**: [`svagview-v0.1.0-windows-x86_64.zip`](https://github.com/DoctorLestrange/SvagView/releases)  
   *No installation required. Unzip and run `svagview.exe` anywhere.*
-- **Standalone Executable**: [`svagview-v0.1.0-windows-x86_64.exe`](https://github.com/vaibhav-upadhyay/SvagView/releases)
+- **Standalone Executable**: [`svagview-v0.1.0-windows-x86_64.exe`](https://github.com/DoctorLestrange/SvagView/releases)
 
 ### 🐧 Linux (x86_64)
-- **Debian / Ubuntu Package (Recommended)**: [`svagview_0.1.0_amd64.deb`](https://github.com/vaibhav-upadhyay/SvagView/releases)  
+- **Debian / Ubuntu Package (Recommended)**: [`svagview_0.1.0_amd64.deb`](https://github.com/DoctorLestrange/SvagView/releases)  
   *Double-click to install or run `sudo apt install ./svagview_0.1.0_amd64.deb`. Integrates into your application menu and file manager.*
-- **Portable Tarball**: [`svagview-v0.1.0-linux-x86_64.tar.gz`](https://github.com/vaibhav-upadhyay/SvagView/releases)  
+- **Portable Tarball**: [`svagview-v0.1.0-linux-x86_64.tar.gz`](https://github.com/DoctorLestrange/SvagView/releases)  
   *Extract and run anywhere.*
-- **Standalone Binary**: [`svagview-v0.1.0-linux-x86_64`](https://github.com/vaibhav-upadhyay/SvagView/releases)
+- **Standalone Binary**: [`svagview-v0.1.0-linux-x86_64`](https://github.com/DoctorLestrange/SvagView/releases)
 
 ### Install with Cargo
 If you have Rust installed, install SvagView directly via Cargo:
 ```bash
-cargo install --git https://github.com/vaibhav-upadhyay/SvagView.git
+cargo install --git https://github.com/DoctorLestrange/SvagView.git
 ```
 
 ### Build from Source
@@ -165,7 +165,7 @@ cargo install --git https://github.com/vaibhav-upadhyay/SvagView.git
 #### Building
 ```bash
 # Clone the repository
-git clone https://github.com/vaibhav-upadhyay/SvagView.git
+git clone https://github.com/DoctorLestrange/SvagView.git
 cd SvagView
 
 # Run automated test suite
