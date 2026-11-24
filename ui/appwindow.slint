@@ -1,0 +1,1377 @@
+export struct EditorInfo {
+    id: string,
+    name: string,
+    icon: string,
+}
+
+component ToolButton inherits Rectangle {
+    in property <string> text: "";
+    in property <string> icon: "";
+    in property <bool> active: false;
+    in property <bool> enabled: true;
+    in property <bool> is_light: false;
+    in property <string> tooltip_text: "";
+    callback clicked();
+
+    height: 32px;
+    border-radius: 6px;
+
+    // Light / Dark dynamic colors
+    background: !root.enabled ?
+        (root.is_light ? #f0f0f3 : #1a1a1d) :
+        (ta.pressed ? (root.is_light ? #dcdce0 : #383840) :
+        (ta.has-hover ? (root.is_light ? #e9e9ee : #2d2d33) :
+        (root.active ? (root.is_light ? #e0e0e6 : #32323a) :
+        (root.is_light ? #ffffff : #232328))));
+
+    border-width: 1px;
+    border-color: root.active ? (root.is_light ? #4f46e5 : #818cf8) : (root.is_light ? #d6d6dc : #303038);
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: root.text != "" ? 10px : 8px;
+        padding-right: root.text != "" ? 10px : 8px;
+        spacing: 6px;
+        alignment: center;
+
+        if root.icon == "fullscreen": Rectangle {
+            width: 14px;
+            height: root.height;
+            Path {
+                width: 14px;
+                height: 14px;
+                y: (parent.height - self.height) / 2;
+                stroke: !root.enabled ?
+                    (root.is_light ? #a0a0aa : #585862) :
+                    (root.active ? (root.is_light ? #111827 : #ffffff) :
+                    (root.is_light ? #27272a : #d4d4d8));
+                stroke-width: 1.6px;
+                commands: "M 1 5 L 1 1 L 5 1 M 9 1 L 13 1 L 13 5 M 13 9 L 13 13 L 9 13 M 5 13 L 1 13 L 1 9";
+            }
+        }
+
+        if root.icon == "unfullscreen": Rectangle {
+            width: 14px;
+            height: root.height;
+            Path {
+                width: 14px;
+                height: 14px;
+                y: (parent.height - self.height) / 2;
+                stroke: !root.enabled ?
+                    (root.is_light ? #a0a0aa : #585862) :
+                    (root.active ? (root.is_light ? #111827 : #ffffff) :
+                    (root.is_light ? #27272a : #d4d4d8));
+                stroke-width: 1.6px;
+                commands: "M 5 1 L 5 5 L 1 5 M 9 1 L 9 5 L 13 5 M 13 9 L 9 9 L 9 13 M 5 13 L 5 9 L 1 9";
+            }
+        }
+
+        if root.icon == "close": Rectangle {
+            width: 12px;
+            height: root.height;
+            Path {
+                width: 12px;
+                height: 12px;
+                y: (parent.height - self.height) / 2;
+                stroke: !root.enabled ?
+                    (root.is_light ? #a0a0aa : #585862) :
+                    (root.active ? (root.is_light ? #111827 : #ffffff) :
+                    (root.is_light ? #27272a : #d4d4d8));
+                stroke-width: 1.8px;
+                commands: "M 1 1 L 11 11 M 11 1 L 1 11";
+            }
+        }
+
+        if root.icon != "" && root.icon != "fullscreen" && root.icon != "unfullscreen" && root.icon != "close": Text {
+            text: root.icon;
+            color: !root.enabled ?
+                (root.is_light ? #a0a0aa : #585862) :
+                (root.active ? (root.is_light ? #111827 : #ffffff) :
+                (root.is_light ? #27272a : #d4d4d8));
+            font-size: 14px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        if root.text != "": Text {
+            text: root.text;
+            color: !root.enabled ?
+                (root.is_light ? #a0a0aa : #585862) :
+                (root.active ? (root.is_light ? #111827 : #ffffff) :
+                (root.is_light ? #27272a : #d4d4d8));
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "SvagView - SVG Viewer";
+    icon: @image-url("../resources/SvagView_Logo_Icon.svg");
+    preferred-width: max(1240px, root.min-width);
+    preferred-height: 820px;
+    min-width: 820px + root.available_editors.length * 85px;
+    min-height: 520px;
+    background: root.is_light_mode ? #f4f4f6 : #161619;
+
+    in-out property <image> viewport_image;
+    in-out property <image> banner_image;
+    in-out property <bool> has_document: false;
+    in-out property <string> file_name: "No file opened";
+    in-out property <string> file_path: "";
+    in-out property <string> folder_counter: "";
+    in-out property <string> dimensions_text: "0 × 0 px";
+    in-out property <string> view_box_text: "-";
+    in-out property <string> file_size_text: "0 B";
+    in-out property <string> render_time_text: "";
+    in-out property <string> zoom_text: "100%";
+    in-out property <int> bg_mode: 1; // 0=checkerboard, 1=white, 2=black, 3=slate
+    in-out property <bool> is_light_mode: true;
+
+    out property <length> canvas_width: canvas_rect.width;
+    out property <length> canvas_height: canvas_rect.height;
+
+    in-out property <bool> show_info_dialog: false;
+    in-out property <bool> show_export_dialog: false;
+    in-out property <bool> show_settings_dialog: false;
+    in-out property <[EditorInfo]> available_editors: [];
+
+    // Detailed metadata for info panel
+    in-out property <int> meta_paths: 0;
+    in-out property <int> meta_groups: 0;
+    in-out property <int> meta_texts: 0;
+    in-out property <int> meta_gradients: 0;
+    in-out property <int> meta_clips: 0;
+    in-out property <int> meta_masks: 0;
+    in-out property <int> meta_filters: 0;
+    in-out property <string> meta_parse_time: "-";
+
+    // Export dialog inputs
+    in-out property <int> export_scale_preset: 1; // 1, 2, 4, 8
+    in-out property <int> export_bg_mode: 0; // 0=transparent, 1=white, 2=black
+    in-out property <string> export_dimensions_text: "";
+
+    // Fullscreen state
+    in-out property <bool> is_fullscreen: false;
+
+    // Toast notification properties
+    in-out property <string> toast_message: "";
+    in-out property <bool> toast_is_error: false;
+    in-out property <bool> show_toast: false;
+
+    // Callbacks
+    callback open_file_clicked();
+    callback prev_file_clicked();
+    callback next_file_clicked();
+    callback first_file_clicked();
+    callback last_file_clicked();
+    callback dismiss_toast();
+    callback export_scale_changed(int);
+    callback reload_clicked();
+    callback copy_image_clicked();
+    callback copy_svg_text_clicked();
+    callback copy_path_clicked();
+    callback export_png_action(int, int); // scale_preset, bg_mode
+    callback open_editor_clicked(string);
+    callback open_default_clicked();
+    callback set_bg_mode(int);
+    callback cycle_bg_mode();
+    callback toggle_theme();
+    callback zoom_in_clicked();
+    callback zoom_out_clicked();
+    callback zoom_fit_clicked();
+    callback zoom_100_clicked();
+    callback toggle_fullscreen_clicked();
+    callback canvas_wheel(length, length, length); // delta_y, mouse_x, mouse_y
+    callback pan_started(length, length);          // mouse_x, mouse_y
+    callback pan_moved(length, length);            // mouse_x, mouse_y
+    callback pan_ended();
+    callback canvas_resized();
+    callback file_dropped(data-transfer);
+    callback handle_escape();
+
+    changed canvas_width => { root.canvas_resized(); }
+    changed canvas_height => { root.canvas_resized(); }
+
+    forward-focus: fs;
+
+    fs := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                if (root.show_info_dialog) {
+                    root.show_info_dialog = false;
+                    return accept;
+                }
+                if (root.show_export_dialog) {
+                    root.show_export_dialog = false;
+                    return accept;
+                }
+                if (root.show_settings_dialog) {
+                    root.show_settings_dialog = false;
+                    return accept;
+                }
+                root.handle_escape();
+                return accept;
+            }
+            if (event.text == Key.F11) {
+                root.toggle_fullscreen_clicked();
+                return accept;
+            }
+            if (event.text == Key.F5 || (event.modifiers.control && (event.text == "r" || event.text == "R"))) {
+                root.reload_clicked();
+                return accept;
+            }
+            if (event.text == Key.LeftArrow || event.text == Key.PageUp) {
+                root.prev_file_clicked();
+                return accept;
+            }
+            if (event.text == Key.RightArrow || event.text == Key.PageDown) {
+                root.next_file_clicked();
+                return accept;
+            }
+            if (event.text == Key.Home) {
+                root.first_file_clicked();
+                return accept;
+            }
+            if (event.text == Key.End) {
+                root.last_file_clicked();
+                return accept;
+            }
+            if (event.modifiers.control && (event.text == "o" || event.text == "O")) {
+                root.open_file_clicked();
+                return accept;
+            }
+            if (event.modifiers.control && event.modifiers.shift && (event.text == "c" || event.text == "C")) {
+                root.copy_svg_text_clicked();
+                return accept;
+            }
+            if (event.modifiers.control && (event.text == "c" || event.text == "C")) {
+                root.copy_image_clicked();
+                return accept;
+            }
+            if (event.modifiers.control && (event.text == "e" || event.text == "E" || event.text == "s" || event.text == "S")) {
+                root.export_scale_changed(root.export_scale_preset);
+                root.show_export_dialog = true;
+                return accept;
+            }
+            if (event.modifiers.control && (event.text == ",")) {
+                root.show_settings_dialog = !root.show_settings_dialog;
+                return accept;
+            }
+            if (event.text == "+" || event.text == "=" || (event.modifiers.control && event.text == "=")) {
+                root.zoom_in_clicked();
+                return accept;
+            }
+            if (event.text == "-" || (event.modifiers.control && event.text == "-")) {
+                root.zoom_out_clicked();
+                return accept;
+            }
+            if (event.text == "0" || (event.modifiers.control && event.text == "0") || event.text == "f" || event.text == "F") {
+                root.zoom_fit_clicked();
+                return accept;
+            }
+            if (event.text == "1" || (event.modifiers.control && event.text == "1")) {
+                root.zoom_100_clicked();
+                return accept;
+            }
+            if (event.text == "i" || event.text == "I") {
+                root.show_info_dialog = !root.show_info_dialog;
+                return accept;
+            }
+            if (event.text == "b" || event.text == "B") {
+                root.cycle_bg_mode();
+                return accept;
+            }
+            if (event.text == "t" || event.text == "T") {
+                root.toggle_theme();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    VerticalLayout {
+        // TOP TOOLBAR - perfectly symmetrical 8px vertical padding
+        Rectangle {
+            height: 48px;
+            background: root.is_light_mode ? #ffffff : #1f1f23;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 8px;
+                alignment: space-between;
+
+                // Left: Logo & File Ops
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    // Brand Badge with User Logo Icon (perfectly aligned)
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 6px;
+                        background: root.is_light_mode ? #f4f4f6 : #26262c;
+                        border-width: 1px;
+                        border-color: root.is_light_mode ? #e2e2e6 : #36363e;
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 10px;
+                            spacing: 6px;
+                            alignment: center;
+
+                            Rectangle {
+                                width: 18px;
+                                height: 32px;
+
+                                Image {
+                                    source: @image-url("../resources/SvagView_Logo_Icon.svg");
+                                    width: 18px;
+                                    height: 18px;
+                                    image-fit: contain;
+                                    y: 8px;
+                                }
+                            }
+
+                            Text {
+                                text: "SvagView";
+                                color: root.is_light_mode ? #18181b : #f4f4f5;
+                                font-weight: 700;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Open";
+                        icon: "📂";
+                        clicked => { root.open_file_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "‹";
+                        enabled: root.has_document;
+                        clicked => { root.prev_file_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "›";
+                        enabled: root.has_document;
+                        clicked => { root.next_file_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "🔄";
+                        enabled: root.has_document;
+                        clicked => { root.reload_clicked(); }
+                    }
+
+                    if root.has_document: Rectangle {
+                        height: 32px;
+                        border-radius: 6px;
+                        background: root.is_light_mode ? #f4f4f6 : #26262c;
+                        border-width: 1px;
+                        border-color: root.is_light_mode ? #e2e2e6 : #36363e;
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 8px;
+
+                            if root.folder_counter != "": Text {
+                                text: root.folder_counter;
+                                color: root.is_light_mode ? #71717a : #8e8e98;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: root.file_name;
+                                color: root.is_light_mode ? #18181b : #f4f4f5;
+                                font-size: 13px;
+                                font-weight: 600;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Right: Editor buttons & Actions
+                HorizontalLayout {
+                    padding-right: 8px;
+                    spacing: 8px;
+                    alignment: end;
+
+                    // External Editors (Inkscape, Illustrator, CorelDRAW, etc.)
+                    for editor in root.available_editors: ToolButton {
+                        is_light: root.is_light_mode;
+                        text: editor.name;
+                        icon: editor.icon;
+                        enabled: root.has_document;
+                        clicked => { root.open_editor_clicked(editor.id); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "🌐";
+                        text: "Default";
+                        enabled: root.has_document;
+                        clicked => { root.open_default_clicked(); }
+                    }
+
+                    Rectangle {
+                        width: 1px;
+                        height: 24px;
+                        background: root.is_light_mode ? #e2e2e6 : #2e2e34;
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "📋";
+                        text: "Copy";
+                        enabled: root.has_document;
+                        clicked => { root.copy_image_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "💾";
+                        text: "Export";
+                        enabled: root.has_document;
+                        clicked => {
+                            root.export_scale_changed(root.export_scale_preset);
+                            root.show_export_dialog = true;
+                        }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: root.is_light_mode ? "🌙" : "☀️";
+                        text: root.is_light_mode ? "Dark" : "Light";
+                        clicked => { root.toggle_theme(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "⚙️";
+                        active: root.show_settings_dialog;
+                        clicked => { root.show_settings_dialog = !root.show_settings_dialog; }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "ℹ️";
+                        active: root.show_info_dialog;
+                        enabled: root.has_document;
+                        clicked => { root.show_info_dialog = !root.show_info_dialog; }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: root.is_fullscreen ? "unfullscreen" : "fullscreen";
+                        active: root.is_fullscreen;
+                        tooltip_text: root.is_fullscreen ? "Exit Fullscreen (F11/Esc)" : "Fullscreen (F11)";
+                        clicked => { root.toggle_fullscreen_clicked(); }
+                    }
+                }
+            }
+        }
+
+        // 1px separator
+        Rectangle {
+            height: 1px;
+            background: root.is_light_mode ? #e2e2e6 : #2a2a30;
+        }
+
+        // CENTER CANVAS
+        canvas_rect := Rectangle {
+            clip: true;
+            background: root.is_light_mode ? #eaeaea : #161619;
+
+            // Canvas DropArea for Drag and Drop
+            DropArea {
+                can-drop(event) => {
+                    return copy;
+                }
+                dropped(event) => {
+                    root.file_dropped(event.data);
+                    return copy;
+                }
+            }
+
+            // Canvas TouchArea for smooth pan & zoom (ONLY active when a document is loaded!)
+            TouchArea {
+                enabled: root.has_document;
+                scroll-event(event) => {
+                    root.canvas_wheel(event.delta-y, self.mouse-x, self.mouse-y);
+                    accept
+                }
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                        root.pan_started(self.mouse-x, self.mouse-y);
+                    }
+                    if (event.kind == PointerEventKind.up && event.button == PointerEventButton.left) {
+                        root.pan_ended();
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.pan_moved(self.mouse-x, self.mouse-y);
+                    }
+                }
+            }
+
+            // Live Viewport Render
+            if root.has_document: Image {
+                width: 100%;
+                height: 100%;
+                source: root.viewport_image;
+                image-fit: fill;
+            }
+
+            // Empty state placeholder (Interactive, Browse Files works!)
+            if !root.has_document: Rectangle {
+                HorizontalLayout {
+                    alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 16px;
+
+                        // Banner Graphic
+                        Rectangle {
+                            width: 500px;
+                            height: 121px;
+                            border-radius: 10px;
+                            clip: true;
+
+                            Image {
+                                source: root.banner_image;
+                                width: 500px;
+                                height: 121px;
+                                image-fit: contain;
+                            }
+
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.open_file_clicked(); }
+                            }
+                        }
+
+                        Text {
+                            text: "Drag & drop an SVG file here";
+                            color: root.is_light_mode ? #18181b : #f4f4f5;
+                            font-size: 18px;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                        }
+
+                        Text {
+                            text: "Supports SVG, SVGZ, gradients, clipping, masks & filters";
+                            color: root.is_light_mode ? #71717a : #8e8e98;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                        }
+
+                        // Fully functional Browse Files button
+                        Rectangle {
+                            height: 40px;
+                            border-radius: 8px;
+                            background: root.is_light_mode ?
+                                (ta_empty.pressed ? #e4e4e7 : (ta_empty.has-hover ? #f4f4f5 : #ffffff)) :
+                                (ta_empty.pressed ? #383842 : (ta_empty.has-hover ? #2e2e36 : #25252b));
+                            border-width: 1px;
+                            border-color: root.is_light_mode ? #d4d4d8 : #383842;
+
+                            ta_empty := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.open_file_clicked(); }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 20px;
+                                padding-right: 20px;
+                                spacing: 8px;
+                                alignment: center;
+
+                                Text {
+                                    text: "📂 Browse Files (Ctrl+O)";
+                                    color: root.is_light_mode ? #18181b : #f4f4f5;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1px separator
+        Rectangle {
+            height: 1px;
+            background: root.is_light_mode ? #e2e2e6 : #2a2a30;
+        }
+
+        // BOTTOM STATUS BAR - comfortable padding and centering
+        Rectangle {
+            height: 44px;
+            background: root.is_light_mode ? #ffffff : #1f1f23;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+                spacing: 12px;
+                alignment: space-between;
+
+                // Left: File & SVG Specs
+                HorizontalLayout {
+                    spacing: 14px;
+                    alignment: start;
+
+                    Text {
+                        text: "📐 " + root.dimensions_text;
+                        color: root.is_light_mode ? #52525b : #a1a1aa;
+                        font-size: 12px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "Box: " + root.view_box_text;
+                        color: root.is_light_mode ? #71717a : #8e8e98;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "📦 " + root.file_size_text;
+                        color: root.is_light_mode ? #52525b : #a1a1aa;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+
+                    if root.render_time_text != "": Text {
+                        text: "⚡ " + root.render_time_text;
+                        color: root.is_light_mode ? #16a34a : #4ade80;
+                        font-size: 12px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Center: Zoom controls
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "";
+                        icon: "−";
+                        enabled: root.has_document;
+                        clicked => { root.zoom_out_clicked(); }
+                    }
+
+                    Rectangle {
+                        height: 26px;
+                        border-radius: 4px;
+                        background: root.is_light_mode ? #f4f4f6 : #27272c;
+                        border-width: 1px;
+                        border-color: root.is_light_mode ? #d6d6dc : #36363e;
+
+                        ta_z := TouchArea {
+                            clicked => { root.zoom_100_clicked(); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: root.zoom_text;
+                                color: root.is_light_mode ? #18181b : #f4f4f5;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "";
+                        icon: "+";
+                        enabled: root.has_document;
+                        clicked => { root.zoom_in_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Fit";
+                        enabled: root.has_document;
+                        clicked => { root.zoom_fit_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "100%";
+                        enabled: root.has_document;
+                        clicked => { root.zoom_100_clicked(); }
+                    }
+                }
+
+                // Right: Background mode selector
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "🏁";
+                        text: "Grid";
+                        active: root.bg_mode == 0;
+                        clicked => { root.set_bg_mode(0); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "⬜";
+                        text: "White";
+                        active: root.bg_mode == 1;
+                        clicked => { root.set_bg_mode(1); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "⬛";
+                        text: "Black";
+                        active: root.bg_mode == 2;
+                        clicked => { root.set_bg_mode(2); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "🎨";
+                        text: "Slate";
+                        active: root.bg_mode == 3;
+                        clicked => { root.set_bg_mode(3); }
+                    }
+                }
+            }
+        }
+    }
+
+    // SETTINGS DIALOG OVERLAY
+    if root.show_settings_dialog: Rectangle {
+        background: #00000088;
+
+        TouchArea {
+            clicked => { root.show_settings_dialog = false; }
+        }
+
+        Rectangle {
+            width: 520px;
+            height: 480px;
+            background: root.is_light_mode ? #ffffff : #202025;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.is_light_mode ? #d6d6dc : #363640;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #000000aa;
+
+            // Absorb clicks on dialog body to prevent bubbling to backdrop
+            TouchArea {}
+
+            VerticalLayout {
+                padding: 22px;
+                spacing: 16px;
+
+                // Header
+                HorizontalLayout {
+                    alignment: space-between;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("../resources/SvagView_Logo_Icon.svg");
+                            width: 22px;
+                            height: 22px;
+                            image-fit: contain;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "Settings & Preferences";
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: root.is_light_mode ? #18181b : #ffffff;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "close";
+                        clicked => { root.show_settings_dialog = false; }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Setting: Theme Mode
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "Appearance Theme:";
+                        color: root.is_light_mode ? #71717a : #a1a1aa;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "🌙";
+                            text: "Dark Graphite Grey";
+                            active: !root.is_light_mode;
+                            clicked => {
+                                if (root.is_light_mode) {
+                                    root.toggle_theme();
+                                }
+                            }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "☀️";
+                            text: "Clean Light Mode";
+                            active: root.is_light_mode;
+                            clicked => {
+                                if (!root.is_light_mode) {
+                                    root.toggle_theme();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Setting: Default Canvas Background
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "Default Background Mode:";
+                        color: root.is_light_mode ? #71717a : #a1a1aa;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "🏁";
+                            text: "Checkerboard";
+                            active: root.bg_mode == 0;
+                            clicked => { root.set_bg_mode(0); }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "⬜";
+                            text: "White";
+                            active: root.bg_mode == 1;
+                            clicked => { root.set_bg_mode(1); }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "⬛";
+                            text: "Black";
+                            active: root.bg_mode == 2;
+                            clicked => { root.set_bg_mode(2); }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "🎨";
+                            text: "Slate";
+                            active: root.bg_mode == 3;
+                            clicked => { root.set_bg_mode(3); }
+                        }
+                    }
+                }
+
+                // Setting: Performance & Vector Engine Info
+                VerticalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: "Rendering Engine:";
+                        color: root.is_light_mode ? #71717a : #a1a1aa;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+
+                    Text {
+                        text: "• Engine: Rust + resvg 0.50 + tiny-skia + usvg (Pure Vector Pipeline)";
+                        color: root.is_light_mode ? #52525b : #8e8e98;
+                        font-size: 12px;
+                    }
+                    Text {
+                        text: "• System Fonts: Loaded and cached via fontdb (Segoe UI, Arial, Ubuntu)";
+                        color: root.is_light_mode ? #52525b : #8e8e98;
+                        font-size: 12px;
+                    }
+                    Text {
+                        text: "• Precision: Sub-pixel anti-aliased direct-to-viewport rasterization";
+                        color: root.is_light_mode ? #52525b : #8e8e98;
+                        font-size: 12px;
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Footer
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "SvagView v0.1.0 • Built with Rust & Slint";
+                        color: root.is_light_mode ? #a1a1aa : #71717a;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Done";
+                        active: true;
+                        clicked => { root.show_settings_dialog = false; }
+                    }
+                }
+            }
+        }
+    }
+
+    // INFO DIALOG OVERLAY
+    if root.show_info_dialog: Rectangle {
+        background: #00000088;
+
+        TouchArea {
+            clicked => { root.show_info_dialog = false; }
+        }
+
+        Rectangle {
+            width: 480px;
+            height: 440px;
+            background: root.is_light_mode ? #ffffff : #202025;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.is_light_mode ? #d6d6dc : #363640;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #000000aa;
+
+            // Absorb clicks on dialog body to prevent bubbling to backdrop
+            TouchArea {}
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                // Title
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "ℹ️ SVG Document Information";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: root.is_light_mode ? #18181b : #ffffff;
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "close";
+                        clicked => { root.show_info_dialog = false; }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Info Rows
+                VerticalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        Text { text: "File:"; color: root.is_light_mode ? #71717a : #8e8e98; width: 100px; font-size: 13px; }
+                        Text { text: root.file_name; color: root.is_light_mode ? #18181b : #ffffff; font-weight: 600; font-size: 13px; overflow: elide; }
+                    }
+
+                    HorizontalLayout {
+                        Text { text: "Dimensions:"; color: root.is_light_mode ? #71717a : #8e8e98; width: 100px; font-size: 13px; }
+                        Text { text: root.dimensions_text; color: #4f46e5; font-weight: 600; font-size: 13px; }
+                    }
+
+                    HorizontalLayout {
+                        Text { text: "ViewBox:"; color: root.is_light_mode ? #71717a : #8e8e98; width: 100px; font-size: 13px; }
+                        Text { text: root.view_box_text; color: root.is_light_mode ? #18181b : #ffffff; font-size: 13px; }
+                    }
+
+                    HorizontalLayout {
+                        Text { text: "File Size:"; color: root.is_light_mode ? #71717a : #8e8e98; width: 100px; font-size: 13px; }
+                        Text { text: root.file_size_text; color: root.is_light_mode ? #18181b : #ffffff; font-size: 13px; }
+                    }
+
+                    HorizontalLayout {
+                        Text { text: "Parse Time:"; color: root.is_light_mode ? #71717a : #8e8e98; width: 100px; font-size: 13px; }
+                        Text { text: root.meta_parse_time; color: #16a34a; font-size: 13px; }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Structural Complexity stats
+                Text {
+                    text: "Document Elements & Complexity";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: root.is_light_mode ? #27272a : #d4d4d8;
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "• Paths: " + root.meta_paths; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                        Text { text: "• Groups: " + root.meta_groups; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                        Text { text: "• Texts: " + root.meta_texts; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "• Gradients: " + root.meta_gradients; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                        Text { text: "• Clip Paths: " + root.meta_clips; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                        Text { text: "• Masks: " + root.meta_masks; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                        Text { text: "• Filters: " + root.meta_filters; color: root.is_light_mode ? #71717a : #a1a1aa; font-size: 12px; }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Buttons
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: end;
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Copy Path";
+                        icon: "📁";
+                        clicked => { root.copy_path_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Copy SVG Code";
+                        icon: "📝";
+                        clicked => { root.copy_svg_text_clicked(); }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Close";
+                        active: true;
+                        clicked => { root.show_info_dialog = false; }
+                    }
+                }
+            }
+        }
+    }
+
+    // EXPORT PNG DIALOG OVERLAY
+    if root.show_export_dialog: Rectangle {
+        background: #00000088;
+
+        TouchArea {
+            clicked => { root.show_export_dialog = false; }
+        }
+
+        Rectangle {
+            width: 440px;
+            height: 330px;
+            background: root.is_light_mode ? #ffffff : #202025;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.is_light_mode ? #d6d6dc : #363640;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #000000aa;
+
+            // Absorb clicks on dialog body to prevent bubbling to backdrop
+            TouchArea {}
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 16px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "💾 Export to PNG";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: root.is_light_mode ? #18181b : #ffffff;
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "close";
+                        clicked => { root.show_export_dialog = false; }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Resolution Preset Selection
+                VerticalLayout {
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "Resolution Preset:";
+                            color: root.is_light_mode ? #71717a : #a1a1aa;
+                            font-size: 13px;
+                            font-weight: 500;
+                        }
+
+                        if root.export_dimensions_text != "": Text {
+                            text: root.export_dimensions_text;
+                            color: root.is_light_mode ? #4f46e5 : #818cf8;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            text: "1x (Original)";
+                            active: root.export_scale_preset == 1;
+                            clicked => {
+                                root.export_scale_preset = 1;
+                                root.export_scale_changed(1);
+                            }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            text: "2x (HiDPI)";
+                            active: root.export_scale_preset == 2;
+                            clicked => {
+                                root.export_scale_preset = 2;
+                                root.export_scale_changed(2);
+                            }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            text: "4x (Ultra HD)";
+                            active: root.export_scale_preset == 4;
+                            clicked => {
+                                root.export_scale_preset = 4;
+                                root.export_scale_changed(4);
+                            }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            text: "8x (Print)";
+                            active: root.export_scale_preset == 8;
+                            clicked => {
+                                root.export_scale_preset = 8;
+                                root.export_scale_changed(8);
+                            }
+                        }
+                    }
+                }
+
+                // Background Selection for Export
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "PNG Background:";
+                        color: root.is_light_mode ? #71717a : #a1a1aa;
+                        font-size: 13px;
+                        font-weight: 500;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "🏁";
+                            text: "Transparent";
+                            active: root.export_bg_mode == 0;
+                            clicked => { root.export_bg_mode = 0; }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "⬜";
+                            text: "White";
+                            active: root.export_bg_mode == 1;
+                            clicked => { root.export_bg_mode = 1; }
+                        }
+
+                        ToolButton {
+                            is_light: root.is_light_mode;
+                            icon: "⬛";
+                            text: "Black";
+                            active: root.export_bg_mode == 2;
+                            clicked => { root.export_bg_mode = 2; }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: root.is_light_mode ? #e2e2e6 : #2e2e36;
+                }
+
+                // Export & Cancel buttons
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: end;
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        text: "Cancel";
+                        clicked => { root.show_export_dialog = false; }
+                    }
+
+                    ToolButton {
+                        is_light: root.is_light_mode;
+                        icon: "💾";
+                        text: "Export PNG...";
+                        active: true;
+                        clicked => {
+                            root.show_export_dialog = false;
+                            root.export_png_action(root.export_scale_preset, root.export_bg_mode);
+                        }
+                    }
+                }
+            }
+        }
+    // TOAST NOTIFICATION OVERLAY (Instant feedback for errors, exports, clipboard)
+    if root.show_toast: Rectangle {
+        y: root.height - self.height - 54px;
+        x: (root.width - self.width) / 2;
+        width: min(600px, root.width - 32px);
+        height: 40px;
+        border-radius: 8px;
+        background: root.toast_is_error ?
+            (root.is_light_mode ? #fef2f2 : #2d1818) :
+            (root.is_light_mode ? #f0fdf4 : #142818);
+        border-width: 1px;
+        border-color: root.toast_is_error ?
+            (root.is_light_mode ? #fca5a5 : #7f1d1d) :
+            (root.is_light_mode ? #86efac : #14532d);
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #00000066;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 12px;
+            spacing: 10px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Text {
+                    text: root.toast_is_error ? "⚠️" : "✅";
+                    font-size: 14px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.toast_message;
+                    color: root.toast_is_error ?
+                        (root.is_light_mode ? #991b1b : #fca5a5) :
+                        (root.is_light_mode ? #166534 : #86efac);
+                    font-size: 13px;
+                    font-weight: 600;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.show_toast = false;
+                        root.dismiss_toast();
+                    }
+                }
+
+                Text {
+                    text: "✕";
+                    color: root.toast_is_error ?
+                        (root.is_light_mode ? #991b1b : #fca5a5) :
+                        (root.is_light_mode ? #166534 : #86efac);
+                    font-size: 11px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+}

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <!-- Star Clip Path -->
+    <clipPath id="star-clip">
+      <polygon points="200,60 235,160 340,160 255,225 285,325 200,265 115,325 145,225 60,160 165,160" />
+    </clipPath>
+
+    <!-- Circle Grid Clip Path -->
+    <clipPath id="multi-circle-clip">
+      <circle cx="580" cy="200" r="100" />
+      <circle cx="680" cy="240" r="60" />
+      <circle cx="480" cy="240" r="60" />
+    </clipPath>
+
+    <!-- Linear Luminance Mask -->
+    <mask id="fade-mask" maskContentUnits="userSpaceOnUse">
+      <linearGradient id="mask-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+        <stop offset="50%" stop-color="#ffffff" stop-opacity="0.8" />
+        <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+      </linearGradient>
+      <rect x="100" y="380" width="600" height="180" fill="url(#mask-gradient)" rx="12" />
+    </mask>
+
+    <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff007f" />
+      <stop offset="25%" stop-color="#7928ca" />
+      <stop offset="50%" stop-color="#0070f3" />
+      <stop offset="75%" stop-color="#00dfd8" />
+      <stop offset="100%" stop-color="#79ffe1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="#0f111a" rx="16" />
+
+  <text x="50" y="60" font-family="Segoe UI, sans-serif" font-size="28" font-weight="bold" fill="#ffffff">
+    Clipping Paths &amp; Alpha Masks
+  </text>
+
+  <!-- Group clipped by star -->
+  <g clip-path="url(#star-clip)">
+    <!-- Striped pattern inside clipped region -->
+    <rect x="40" y="40" width="320" height="300" fill="#1e1e2f" />
+    <circle cx="200" cy="200" r="130" fill="url(#rainbow)" />
+    <circle cx="200" cy="200" r="70" fill="#ffffff" opacity="0.3" />
+    <line x1="60" y1="60" x2="340" y2="340" stroke="#ffffff" stroke-width="8" stroke-dasharray="10 10" />
+  </g>
+
+  <!-- Group clipped by multi-circles -->
+  <g clip-path="url(#multi-circle-clip)">
+    <rect x="400" y="80" width="360" height="260" fill="#111936" />
+    <path d="M 400 100 L 760 300 L 400 300 Z" fill="#ff4081" opacity="0.8" />
+    <path d="M 760 100 L 400 280 L 760 280 Z" fill="#00e5ff" opacity="0.7" />
+  </g>
+
+  <!-- Masked element fading smoothly to transparent -->
+  <g mask="url(#fade-mask)">
+    <rect x="100" y="380" width="600" height="180" fill="url(#rainbow)" rx="12" />
+    <text x="400" y="460" font-family="Segoe UI, sans-serif" font-size="28" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Smooth Luminance Mask Fade
+    </text>
+    <text x="400" y="500" font-family="Segoe UI, sans-serif" font-size="16" fill="#ffffff" text-anchor="middle" opacity="0.9">
+      Complex alpha blending handled accurately via resvg + tiny-skia
+    </text>
+  </g>
+</svg>

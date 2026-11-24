@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <!-- Linear Gradient with multiple color stops -->
+    <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4facfe" stop-opacity="1" />
+      <stop offset="50%" stop-color="#00f2fe" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#7b2cbf" stop-opacity="1" />
+    </linearGradient>
+
+    <!-- Radial Gradient -->
+    <radialGradient id="sun-glow" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#ff9a9e" />
+      <stop offset="70%" stop-color="#fecfef" />
+      <stop offset="100%" stop-color="#a1c4fd" stop-opacity="0.2" />
+    </radialGradient>
+
+    <!-- Radial Accent -->
+    <radialGradient id="sphere-shade" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#ff758c" />
+      <stop offset="100%" stop-color="#7b0038" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background grid elements -->
+  <rect x="0" y="0" width="800" height="600" fill="#0d1117" rx="16" />
+
+  <!-- Diagonal flowing gradient waves -->
+  <path d="M 0 350 C 200 200, 350 450, 550 300 C 700 180, 750 250, 800 220 L 800 600 L 0 600 Z" fill="url(#cyber-grad)" opacity="0.85" />
+  <path d="M 0 450 C 250 350, 450 550, 650 400 C 720 350, 780 380, 800 360 L 800 600 L 0 600 Z" fill="#240046" opacity="0.6" />
+
+  <!-- Glowing Sun/Portal -->
+  <circle cx="220" cy="200" r="110" fill="url(#sun-glow)" />
+
+  <!-- 3D shaded sphere -->
+  <circle cx="580" cy="220" r="90" fill="url(#sphere-shade)" />
+
+  <!-- Decorative geometric rings -->
+  <circle cx="580" cy="220" r="120" fill="none" stroke="#ff758c" stroke-width="2" stroke-dasharray="8 6" opacity="0.6" />
+  <circle cx="580" cy="220" r="140" fill="none" stroke="#4facfe" stroke-width="1.5" stroke-dasharray="16 8" opacity="0.5" />
+
+  <!-- Vector text with system typography -->
+  <text x="50" y="80" font-family="Segoe UI, Inter, sans-serif" font-size="32" font-weight="bold" fill="#ffffff">
+    Linear &amp; Radial Gradients
+  </text>
+  <text x="50" y="115" font-family="Segoe UI, Inter, sans-serif" font-size="16" fill="#8b949e">
+    Accurate multi-stop rendering, transforms, and anti-aliasing
+  </text>
+</svg>
