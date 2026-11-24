@@ -5,6 +5,7 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,18 +15,10 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.allow_failure }}
-    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            allow_failure: false
-          - os: windows-latest
-            allow_failure: false
-          - os: macos-latest
-            allow_failure: true
+        os: [ ubuntu-latest, windows-latest ]
 
     steps:
       - name: Checkout repository

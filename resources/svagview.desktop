@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=SvagView
+Comment=Lightweight, ultra-fast native SVG/SVGZ vector viewer
+Exec=svagview %U
+Icon=svagview
+Terminal=false
+Type=Application
+Categories=Graphics;Viewer;VectorGraphics;
+MimeType=image/svg+xml;image/svg+xml-compressed;
+Keywords=svg;svgz;vector;viewer;image;
+StartupNotify=true

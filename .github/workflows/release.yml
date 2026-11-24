@@ -4,117 +4,186 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
-  build-release:
-    name: Build (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.allow_failure || false }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bin_name: svagview.exe
-            asset_name: svagview-windows-x86_64.zip
-            allow_failure: false
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            bin_name: svagview
-            asset_name: svagview-linux-x86_64.tar.gz
-            allow_failure: false
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            bin_name: svagview
-            asset_name: svagview-macos-x86_64.tar.gz
-            allow_failure: true
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            bin_name: svagview
-            asset_name: svagview-macos-aarch64.tar.gz
-            allow_failure: true
-
+  build-windows:
+    name: Build Windows Release & Installer
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Prepare Portable ZIP and Standalone Executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force
+          $portableDir = "svagview-v0.1.0-windows-x86_64"
+          New-Item -ItemType Directory -Path $portableDir -Force
+          Copy-Item "target/release/svagview.exe" -Destination $portableDir/
+          Copy-Item "README.md" -Destination $portableDir/
+          Copy-Item "LICENSE" -Destination $portableDir/
+          Copy-Item "resources/SvagView_Logo_Icon.ico" -Destination $portableDir/
+          Compress-Archive -Path "$portableDir/*" -DestinationPath "dist/svagview-v0.1.0-windows-x86_64.zip" -Force
+          Copy-Item "target/release/svagview.exe" -Destination "dist/svagview-v0.1.0-windows-x86_64.exe"
+
+      - name: Build Windows Setup Installer with Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $iscc) {
+            & $iscc resources/installer.iss
+          } else {
+            Write-Warning "Inno Setup compiler not found at $iscc, searching PATH..."
+            ISCC.exe resources/installer.iss
+          }
+
+      - name: Generate Checksums (Windows)
+        shell: pwsh
+        run: |
+          Get-ChildItem dist/*.* | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -FilePath "$($_.FullName).sha256" -Encoding ascii
+          }
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-assets
+          path: dist/*
+
+  build-linux:
+    name: Build Linux Release & DEB Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
-      - name: Package asset (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Prepare Linux Portable Tarball and Binary
         run: |
-          $dir = "svagview-${{ matrix.target }}"
-          New-Item -ItemType Directory -Path $dir
-          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" -Destination $dir/
-          Copy-Item "README.md" -Destination $dir/
-          Copy-Item "LICENSE" -Destination $dir/
-          Compress-Archive -Path "$dir/*" -DestinationPath "${{ matrix.asset_name }}"
+          mkdir -p dist
+          PORTABLE_DIR="svagview-v0.1.0-linux-x86_64"
+          mkdir -p "$PORTABLE_DIR"
+          cp target/release/svagview "$PORTABLE_DIR/"
+          cp README.md LICENSE "$PORTABLE_DIR/"
+          cp resources/svagview.desktop "$PORTABLE_DIR/"
+          cp resources/SvagView_Logo_Icon.svg "$PORTABLE_DIR/"
+          tar -czvf "dist/svagview-v0.1.0-linux-x86_64.tar.gz" -C "$PORTABLE_DIR" .
+          cp target/release/svagview dist/svagview-v0.1.0-linux-x86_64
+          chmod +x dist/svagview-v0.1.0-linux-x86_64
 
-      - name: Package asset (Unix)
-        if: runner.os != 'Windows'
+      - name: Build Debian/Ubuntu (.deb) Package
         run: |
-          DIR="svagview-${{ matrix.target }}"
-          mkdir -p "$DIR"
-          cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "$DIR/"
-          cp README.md LICENSE "$DIR/"
-          tar -czvf "${{ matrix.asset_name }}" -C "$DIR" .
+          mkdir -p deb/DEBIAN
+          mkdir -p deb/usr/bin
+          mkdir -p deb/usr/share/applications
+          mkdir -p deb/usr/share/icons/hicolor/scalable/apps
+          mkdir -p deb/usr/share/doc/svagview
 
-      - name: Generate Checksum
-        shell: bash
+          cp target/release/svagview deb/usr/bin/
+          chmod 755 deb/usr/bin/svagview
+          cp resources/svagview.desktop deb/usr/share/applications/
+          cp resources/SvagView_Logo_Icon.svg deb/usr/share/icons/hicolor/scalable/apps/svagview.svg
+          cp LICENSE deb/usr/share/doc/svagview/copyright
+          cp README.md deb/usr/share/doc/svagview/
+
+          cat << 'EOF' > deb/DEBIAN/control
+          Package: svagview
+          Version: 0.1.0
+          Section: graphics
+          Priority: optional
+          Architecture: amd64
+          Maintainer: SvagView Contributors <https://github.com/vaibhav-upadhyay/SvagView>
+          Description: Ultra-fast native SVG and SVGZ vector graphics viewer
+           SvagView is a lightweight, blazing-fast desktop SVG viewer built natively
+           with Rust, Slint, usvg, resvg, and tiny-skia. It delivers pixel-perfect
+           infinite vector zoom with zero rasterization artifacts.
+          EOF
+
+          dpkg-deb --build deb dist/svagview_0.1.0_amd64.deb
+
+      - name: Generate Checksums (Linux)
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            certutil -hashfile "${{ matrix.asset_name }}" SHA256 | grep -v ":" | tr -d ' \r\n' > "${{ matrix.asset_name }}.sha256"
-          else
-            shasum -a 256 "${{ matrix.asset_name }}" | awk '{print $1}' > "${{ matrix.asset_name }}.sha256"
-          fi
+          cd dist
+          for file in *; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" > "$file.sha256"
+            fi
+          done
 
-      - name: Upload Artifact
+      - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: |
-            ${{ matrix.asset_name }}
-            ${{ matrix.asset_name }}.sha256
+          name: linux-release-assets
+          path: dist/*
 
   publish-release:
     name: Publish GitHub Release
-    needs: build-release
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download all built assets
+      - name: Download Windows assets
         uses: actions/download-artifact@v4
         with:
-          path: release_assets
+          name: windows-release-assets
+          path: download/windows
 
-      - name: Flatten assets directory
+      - name: Download Linux assets
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release-assets
+          path: download/linux
+
+      - name: Consolidate Release Assets and Generate SHA256SUMS.txt
         run: |
-          mkdir -p dist
-          find release_assets -type f -exec cp {} dist/ \;
-          cd dist
-          sha256sum svagview-*.* > SHA256SUMS.txt
+          mkdir -p release_dist
+          find download -type f -exec cp {} release_dist/ \;
+          cd release_dist
+          # Remove individual .sha256 files if regenerating master list
+          rm -f *.sha256
+          sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      - name: Determine Tag Name
+        id: tag_name
+        run: |
+          if [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
+            echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=v0.1.0" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          tag_name: ${{ steps.tag_name.outputs.TAG }}
+          name: "SvagView ${{ steps.tag_name.outputs.TAG }} - Ultra-Fast Native SVG Viewer"
+          files: release_dist/*
           draft: false
           prerelease: false
           generate_release_notes: true
