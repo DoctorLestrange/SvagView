@@ -113,8 +113,22 @@ fn test_editor_detection() {
     println!("Detected {} SVG editors on system:", editors.len());
     for ed in &editors {
         println!(" - {} ({}): {:?}", ed.name, ed.icon_text, ed.executable);
+        assert!(!ed.id.is_empty(), "Editor ID must not be empty");
+        assert!(!ed.name.is_empty(), "Editor name must not be empty");
+        assert!(
+            !ed.icon_text.is_empty(),
+            "Editor icon text must not be empty"
+        );
+        assert!(
+            ed.executable.is_file(),
+            "Detected editor executable must exist on disk: {:?}",
+            ed.executable
+        );
     }
-    assert!(!editors.is_empty(), "Should detect at least 1 SVG editor");
+    // Note: Clean CI environments (GitHub Actions Ubuntu, Windows, macOS runners)
+    // do not have desktop graphics suites (Inkscape, Illustrator, CorelDRAW) preinstalled.
+    // In that environment, returning an empty list without panicking is the correct behavior.
+    println!("Editor detection executed safely!");
 }
 
 #[test]
@@ -244,13 +258,15 @@ fn test_generate_app_ico() {
         ico.extend_from_slice(data);
     }
 
-    let out_ico = Path::new("resources/SvagView_Logo_Icon.ico");
-    std::fs::write(out_ico, ico).expect("Failed to write ICO");
+    let out_ico = std::env::temp_dir().join("SvagView_Logo_Icon_test.ico");
+    std::fs::write(&out_ico, &ico).expect("Failed to write test ICO");
     println!(
         "Generated multi-resolution ICO (16, 24, 32, 48, 64, 128, 256 px): {:?}",
         out_ico
     );
     assert!(out_ico.exists());
+    assert!(out_ico.metadata().unwrap().len() > 1000);
+    let _ = std::fs::remove_file(out_ico);
 }
 
 #[test]

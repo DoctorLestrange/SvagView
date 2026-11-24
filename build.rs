@@ -3,12 +3,11 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=resources/SvagView_Logo_Icon.ico");
-    println!("cargo:rerun-if-changed=resources/app.rc");
 
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let out_dir = std::env::var("OUT_DIR").unwrap();
         let res_path = format!("{}/app.res", out_dir);
-        let rc_path = "resources/app.rc";
+        let rc_path = format!("{}/app.rc", out_dir);
 
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
         let ico_abs = format!(
@@ -16,7 +15,7 @@ fn main() {
             manifest_dir.replace('\\', "/")
         );
         let rc_content = format!("1 ICON \"{}\"\n", ico_abs);
-        std::fs::write(rc_path, rc_content).unwrap();
+        std::fs::write(&rc_path, rc_content).unwrap();
 
         let rc_sdk = r"C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\rc.exe";
         let rc_exe = if std::path::Path::new(rc_sdk).exists() {
