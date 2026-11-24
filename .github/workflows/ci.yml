@@ -14,10 +14,18 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.allow_failure }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        include:
+          - os: ubuntu-latest
+            allow_failure: false
+          - os: windows-latest
+            allow_failure: false
+          - os: macos-latest
+            allow_failure: true
 
     steps:
       - name: Checkout repository

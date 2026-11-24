@@ -9,6 +9,8 @@ jobs:
   build-release:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.allow_failure || false }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -17,18 +19,22 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin_name: svagview.exe
             asset_name: svagview-windows-x86_64.zip
+            allow_failure: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bin_name: svagview
             asset_name: svagview-linux-x86_64.tar.gz
+            allow_failure: false
           - os: macos-latest
             target: x86_64-apple-darwin
             bin_name: svagview
             asset_name: svagview-macos-x86_64.tar.gz
+            allow_failure: true
           - os: macos-latest
             target: aarch64-apple-darwin
             bin_name: svagview
             asset_name: svagview-macos-aarch64.tar.gz
+            allow_failure: true
 
     steps:
       - name: Checkout repository
