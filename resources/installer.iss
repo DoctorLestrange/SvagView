@@ -17,6 +17,7 @@ DefaultDirName={autopf}\{#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
+SourceDir=..
 OutputDir=dist
 OutputBaseFilename=svagview-v0.1.0-windows-setup
 SetupIconFile=resources\SvagView_Logo_Icon.ico

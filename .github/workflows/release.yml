@@ -46,10 +46,10 @@ jobs:
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (Test-Path $iscc) {
-            & $iscc resources/installer.iss
+            & $iscc /O"dist" resources/installer.iss
           } else {
             Write-Warning "Inno Setup compiler not found at $iscc, searching PATH..."
-            ISCC.exe resources/installer.iss
+            ISCC.exe /O"dist" resources/installer.iss
           }
 
       - name: Generate Checksums (Windows)
