@@ -1,6 +1,6 @@
 ; Inno Setup Script for SvagView
 #define MyAppName "SvagView"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.1.1"
 #define MyAppPublisher "SvagView Contributors"
 #define MyAppURL "https://github.com/vaibhav-upadhyay/SvagView"
 #define MyAppExeName "svagview.exe"
@@ -19,7 +19,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 SourceDir=..
 OutputDir=dist
-OutputBaseFilename=svagview-v0.1.0-windows-setup
+OutputBaseFilename=svagview-v0.1.1-windows-setup
 SetupIconFile=resources\SvagView_Logo_Icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes

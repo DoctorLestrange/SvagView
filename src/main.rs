@@ -57,11 +57,17 @@ fn main() -> Result<(), slint::PlatformError> {
         _ => BackgroundStyle::White,
     };
 
-    // Static embedded banner bytes for pristine Lanczos3 opening screen
+    // Static embedded banner and icon assets
     const BANNER_BYTES: &[u8] = include_bytes!("../resources/SvagView_Logo_Banner_with_Text.png");
+    const APP_ICO_BYTES: &[u8] = include_bytes!("../resources/SvagView_Logo_Icon.ico");
 
-    // Initialize Lanczos3 downscaled opening banner matching physical screen pixels
+    // Initialize crisp window/UI app icon and Lanczos3 downscaled opening banner
     let scale_factor = window.window().scale_factor();
+    let icon_target_px = ((64.0 * scale_factor).round() as u32).clamp(64, 256);
+    if let Some(app_icon) = svg::decode_ico_to_slint_image(APP_ICO_BYTES, icon_target_px) {
+        window.set_app_icon(app_icon);
+    }
+
     let banner_target_w = (500.0 * scale_factor).round() as u32;
     let banner_target_h = ((banner_target_w as f32) * (794.0 / 3290.0)).round() as u32;
     if let Some(banner_img) =

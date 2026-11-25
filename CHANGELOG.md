@@ -5,6 +5,16 @@ All notable changes to **SvagView** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-11-25
+
+### Fixed
+- Fixed Windows minimum horizontal window size calculation so Slint derives exact track bounds dynamically from toolbar contents and installed external editors, preventing right-side toolbar buttons from being cropped on horizontal resize.
+- Enabled graceful filename and `viewBox` text elision inside minimum bounds when the window is narrowed.
+
+### Changed
+- Updated `resources/SvagView_Logo_Icon.ico` and added runtime ICO decoding for crisp multi-resolution window and UI icons.
+- Updated installer metadata, UI version footer, and release workflows to `v0.1.1`.
+
 ## [0.1.0] - 2026-11-24
 
 ### Added

@@ -32,14 +32,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path dist -Force
-          $portableDir = "svagview-v0.1.0-windows-x86_64"
+          $portableDir = "svagview-v0.1.1-windows-x86_64"
           New-Item -ItemType Directory -Path $portableDir -Force
           Copy-Item "target/release/svagview.exe" -Destination $portableDir/
           Copy-Item "README.md" -Destination $portableDir/
           Copy-Item "LICENSE" -Destination $portableDir/
           Copy-Item "resources/SvagView_Logo_Icon.ico" -Destination $portableDir/
-          Compress-Archive -Path "$portableDir/*" -DestinationPath "dist/svagview-v0.1.0-windows-x86_64.zip" -Force
-          Copy-Item "target/release/svagview.exe" -Destination "dist/svagview-v0.1.0-windows-x86_64.exe"
+          Compress-Archive -Path "$portableDir/*" -DestinationPath "dist/svagview-v0.1.1-windows-x86_64.zip" -Force
+          Copy-Item "target/release/svagview.exe" -Destination "dist/svagview-v0.1.1-windows-x86_64.exe"
 
       - name: Build Windows Setup Installer with Inno Setup
         shell: pwsh
@@ -90,15 +90,15 @@ jobs:
       - name: Prepare Linux Portable Tarball and Binary
         run: |
           mkdir -p dist
-          PORTABLE_DIR="svagview-v0.1.0-linux-x86_64"
+          PORTABLE_DIR="svagview-v0.1.1-linux-x86_64"
           mkdir -p "$PORTABLE_DIR"
           cp target/release/svagview "$PORTABLE_DIR/"
           cp README.md LICENSE "$PORTABLE_DIR/"
           cp resources/svagview.desktop "$PORTABLE_DIR/"
           cp resources/SvagView_Logo_Icon.svg "$PORTABLE_DIR/"
-          tar -czvf "dist/svagview-v0.1.0-linux-x86_64.tar.gz" -C "$PORTABLE_DIR" .
-          cp target/release/svagview dist/svagview-v0.1.0-linux-x86_64
-          chmod +x dist/svagview-v0.1.0-linux-x86_64
+          tar -czvf "dist/svagview-v0.1.1-linux-x86_64.tar.gz" -C "$PORTABLE_DIR" .
+          cp target/release/svagview dist/svagview-v0.1.1-linux-x86_64
+          chmod +x dist/svagview-v0.1.1-linux-x86_64
 
       - name: Build Debian/Ubuntu (.deb) Package
         run: |
@@ -117,7 +117,7 @@ jobs:
 
           cat << 'EOF' > deb/DEBIAN/control
           Package: svagview
-          Version: 0.1.0
+          Version: 0.1.1
           Section: graphics
           Priority: optional
           Architecture: amd64
@@ -128,7 +128,7 @@ jobs:
            infinite vector zoom with zero rasterization artifacts.
           EOF
 
-          dpkg-deb --build deb dist/svagview_0.1.0_amd64.deb
+          dpkg-deb --build deb dist/svagview_0.1.1_amd64.deb
 
       - name: Generate Checksums (Linux)
         run: |
@@ -182,7 +182,7 @@ jobs:
           elif [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
             echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "TAG=v0.1.0" >> $GITHUB_OUTPUT
+            echo "TAG=v0.1.1" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release

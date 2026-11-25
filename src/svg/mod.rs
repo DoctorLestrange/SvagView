@@ -5,4 +5,4 @@ pub mod metadata;
 
 pub use engine::{RenderBackground, SvgEngine, ViewportParams};
 pub use export::{export_png, render_for_export, ExportBackground, ExportOptions};
-pub use lanczos::create_lanczos_scaled_image;
+pub use lanczos::{create_lanczos_scaled_image, decode_ico_to_slint_image};

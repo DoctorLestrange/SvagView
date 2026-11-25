@@ -159,18 +159,9 @@ fn compute_filter_weights(src_len: u32, dst_len: u32, scale: f32) -> Vec<(Vec<us
     result
 }
 
-/// Helper: Load and Lanczos3-downscale an image into a slint::Image
-pub fn create_lanczos_scaled_image(
-    png_bytes: &[u8],
-    target_w: u32,
-    target_h: u32,
-) -> Option<Image> {
-    let pixmap = resvg::tiny_skia::Pixmap::decode_png(png_bytes).ok()?;
-    let src_w = pixmap.width();
-    let src_h = pixmap.height();
-
-    // Convert premultiplied RGBA from tiny_skia to straight RGBA
-    let mut straight_rgba = Vec::with_capacity((src_w * src_h * 4) as usize);
+/// Convert a premultiplied tiny-skia Pixmap into a straight-alpha RGBA byte buffer.
+fn pixmap_to_straight_rgba(pixmap: &resvg::tiny_skia::Pixmap) -> Vec<u8> {
+    let mut straight_rgba = Vec::with_capacity((pixmap.width() * pixmap.height() * 4) as usize);
     for p in pixmap.pixels() {
         let a = p.alpha();
         if a > 0 {
@@ -182,10 +173,182 @@ pub fn create_lanczos_scaled_image(
             straight_rgba.extend_from_slice(&[0, 0, 0, 0]);
         }
     }
+    straight_rgba
+}
+
+/// Helper: Load and Lanczos3-downscale an image into a slint::Image
+pub fn create_lanczos_scaled_image(
+    png_bytes: &[u8],
+    target_w: u32,
+    target_h: u32,
+) -> Option<Image> {
+    let pixmap = resvg::tiny_skia::Pixmap::decode_png(png_bytes).ok()?;
+    let src_w = pixmap.width();
+    let src_h = pixmap.height();
+    let straight_rgba = pixmap_to_straight_rgba(&pixmap);
 
     let downscaled = lanczos3_downscale(&straight_rgba, src_w, src_h, target_w, target_h);
 
     let pixel_buffer =
         SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&downscaled, target_w, target_h);
     Some(Image::from_rgba8(pixel_buffer))
+}
+
+/// Decode an embedded `.ico` byte slice into a `slint::Image`, picking the
+/// entry closest to `target_size` (preferring the smallest entry >= `target_size`,
+/// otherwise the largest available entry). Supports both PNG and 32bpp DIB entries.
+pub fn decode_ico_to_slint_image(ico_bytes: &[u8], target_size: u32) -> Option<Image> {
+    if ico_bytes.len() < 6 {
+        return None;
+    }
+    let reserved = u16::from_le_bytes([ico_bytes[0], ico_bytes[1]]);
+    let ico_type = u16::from_le_bytes([ico_bytes[2], ico_bytes[3]]);
+    let count = u16::from_le_bytes([ico_bytes[4], ico_bytes[5]]) as usize;
+    if reserved != 0 || ico_type != 1 || count == 0 {
+        return None;
+    }
+    let dir_end = 6usize.checked_add(count.checked_mul(16)?)?;
+    if ico_bytes.len() < dir_end {
+        return None;
+    }
+
+    #[derive(Clone, Copy)]
+    struct IcoEntry {
+        w: u32,
+        h: u32,
+        bpp: u16,
+        offset: usize,
+        size: usize,
+    }
+
+    let mut entries = Vec::with_capacity(count);
+    for i in 0..count {
+        let base = 6 + i * 16;
+        let w = if ico_bytes[base] == 0 {
+            256
+        } else {
+            ico_bytes[base] as u32
+        };
+        let h = if ico_bytes[base + 1] == 0 {
+            256
+        } else {
+            ico_bytes[base + 1] as u32
+        };
+        let bpp = u16::from_le_bytes([ico_bytes[base + 6], ico_bytes[base + 7]]);
+        let size = u32::from_le_bytes([
+            ico_bytes[base + 8],
+            ico_bytes[base + 9],
+            ico_bytes[base + 10],
+            ico_bytes[base + 11],
+        ]) as usize;
+        let offset = u32::from_le_bytes([
+            ico_bytes[base + 12],
+            ico_bytes[base + 13],
+            ico_bytes[base + 14],
+            ico_bytes[base + 15],
+        ]) as usize;
+
+        if size > 0
+            && offset
+                .checked_add(size)
+                .is_some_and(|end| end <= ico_bytes.len())
+        {
+            entries.push(IcoEntry {
+                w,
+                h,
+                bpp,
+                offset,
+                size,
+            });
+        }
+    }
+
+    entries.sort_by(|a, b| {
+        let a_ge = a.w >= target_size;
+        let b_ge = b.w >= target_size;
+        match (a_ge, b_ge) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            (true, true) => a.w.cmp(&b.w).then_with(|| b.bpp.cmp(&a.bpp)),
+            (false, false) => b.w.cmp(&a.w).then_with(|| b.bpp.cmp(&a.bpp)),
+        }
+    });
+
+    for entry in entries {
+        let payload = &ico_bytes[entry.offset..entry.offset + entry.size];
+        if payload.starts_with(b"\x89PNG\r\n\x1a\n") {
+            if let Ok(pixmap) = resvg::tiny_skia::Pixmap::decode_png(payload) {
+                let rgba = pixmap_to_straight_rgba(&pixmap);
+                let pixel_buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                    &rgba,
+                    pixmap.width(),
+                    pixmap.height(),
+                );
+                return Some(Image::from_rgba8(pixel_buffer));
+            }
+            continue;
+        }
+
+        if payload.len() < 40 {
+            continue;
+        }
+        let header_size =
+            u32::from_le_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
+        if header_size < 40 || header_size > payload.len() {
+            continue;
+        }
+        let bmp_w = i32::from_le_bytes([payload[4], payload[5], payload[6], payload[7]]);
+        let bmp_h = i32::from_le_bytes([payload[8], payload[9], payload[10], payload[11]]);
+        let bit_count = u16::from_le_bytes([payload[14], payload[15]]);
+        let compression = u32::from_le_bytes([payload[16], payload[17], payload[18], payload[19]]);
+
+        if bit_count != 32 || (compression != 0 && compression != 3) {
+            continue;
+        }
+
+        let pixel_offset = if compression == 3 && header_size == 40 {
+            52
+        } else {
+            header_size
+        };
+        let width = if bmp_w != 0 {
+            bmp_w.unsigned_abs()
+        } else {
+            entry.w
+        };
+        let height = entry.h;
+        let pixel_bytes_needed = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|px| px.checked_mul(4));
+        let Some(byte_len) = pixel_bytes_needed else {
+            continue;
+        };
+        if pixel_offset
+            .checked_add(byte_len)
+            .is_none_or(|end| end > payload.len())
+        {
+            continue;
+        }
+
+        let pixels = &payload[pixel_offset..pixel_offset + byte_len];
+        let mut rgba = Vec::with_capacity(byte_len);
+        let bottom_up = bmp_h > 0;
+        let row_bytes = (width as usize) * 4;
+        for dst_y in 0..(height as usize) {
+            let src_y = if bottom_up {
+                (height as usize) - 1 - dst_y
+            } else {
+                dst_y
+            };
+            let row = &pixels[src_y * row_bytes..(src_y + 1) * row_bytes];
+            for bgra in row.chunks_exact(4) {
+                rgba.extend_from_slice(&[bgra[2], bgra[1], bgra[0], bgra[3]]);
+            }
+        }
+
+        let pixel_buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba, width, height);
+        return Some(Image::from_rgba8(pixel_buffer));
+    }
+
+    None
 }

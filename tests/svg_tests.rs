@@ -1,7 +1,8 @@
 use std::path::Path;
 use svagview::app::{detect_editors, AppConfig, AppState};
 use svagview::svg::{
-    export_png, ExportBackground, ExportOptions, RenderBackground, SvgEngine, ViewportParams,
+    decode_ico_to_slint_image, export_png, ExportBackground, ExportOptions, RenderBackground,
+    SvgEngine, ViewportParams,
 };
 
 #[test]
@@ -428,4 +429,21 @@ fn test_app_config_persistence_and_defaults() {
     assert_eq!(fallback, AppConfig::default());
 
     println!("Verified AppConfig persistence defaults and serialization round-trip!");
+}
+
+#[test]
+fn test_decode_app_ico_all_sizes() {
+    let ico_bytes = std::fs::read("resources/SvagView_Logo_Icon.ico")
+        .expect("Failed to read resources/SvagView_Logo_Icon.ico");
+
+    for expected_size in [16u32, 32, 64, 128, 256] {
+        let img = decode_ico_to_slint_image(&ico_bytes, expected_size)
+            .unwrap_or_else(|| panic!("Failed to decode ICO entry for size {}", expected_size));
+        assert_eq!(img.size().width, expected_size);
+        assert_eq!(img.size().height, expected_size);
+    }
+
+    // Invalid or truncated inputs should cleanly return None without panicking
+    assert!(decode_ico_to_slint_image(&[], 64).is_none());
+    assert!(decode_ico_to_slint_image(&[0, 0, 2, 0, 1, 0], 64).is_none());
 }

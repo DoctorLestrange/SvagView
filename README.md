@@ -131,21 +131,21 @@ Automatically scans the operating system on launch and displays dedicated quick-
 
 ## 📥 Installation & Downloads
 
-Pre-compiled packages and installers are available directly on the [GitHub Releases](https://github.com/DoctorLestrange/SvagView/releases) page for version **v0.1.0**:
+Pre-compiled packages and installers are available directly on the [GitHub Releases](https://github.com/DoctorLestrange/SvagView/releases) page for version **v0.1.1**:
 
 ### 🪟 Windows (x86_64)
-- **Windows Setup Installer (Recommended)**: [`svagview-v0.1.0-windows-setup.exe`](https://github.com/DoctorLestrange/SvagView/releases)  
+- **Windows Setup Installer (Recommended)**: [`svagview-v0.1.1-windows-setup.exe`](https://github.com/DoctorLestrange/SvagView/releases)  
   *Full Windows installation wizard with Start Menu shortcut, optional Desktop icon, and automatic `.svg` / `.svgz` file associations.*
-- **Portable ZIP**: [`svagview-v0.1.0-windows-x86_64.zip`](https://github.com/DoctorLestrange/SvagView/releases)  
+- **Portable ZIP**: [`svagview-v0.1.1-windows-x86_64.zip`](https://github.com/DoctorLestrange/SvagView/releases)  
   *No installation required. Unzip and run `svagview.exe` anywhere.*
-- **Standalone Executable**: [`svagview-v0.1.0-windows-x86_64.exe`](https://github.com/DoctorLestrange/SvagView/releases)
+- **Standalone Executable**: [`svagview-v0.1.1-windows-x86_64.exe`](https://github.com/DoctorLestrange/SvagView/releases)
 
 ### 🐧 Linux (x86_64)
-- **Debian / Ubuntu Package (Recommended)**: [`svagview_0.1.0_amd64.deb`](https://github.com/DoctorLestrange/SvagView/releases)  
-  *Double-click to install or run `sudo apt install ./svagview_0.1.0_amd64.deb`. Integrates into your application menu and file manager.*
-- **Portable Tarball**: [`svagview-v0.1.0-linux-x86_64.tar.gz`](https://github.com/DoctorLestrange/SvagView/releases)  
+- **Debian / Ubuntu Package (Recommended)**: [`svagview_0.1.1_amd64.deb`](https://github.com/DoctorLestrange/SvagView/releases)  
+  *Double-click to install or run `sudo apt install ./svagview_0.1.1_amd64.deb`. Integrates into your application menu and file manager.*
+- **Portable Tarball**: [`svagview-v0.1.1-linux-x86_64.tar.gz`](https://github.com/DoctorLestrange/SvagView/releases)  
   *Extract and run anywhere.*
-- **Standalone Binary**: [`svagview-v0.1.0-linux-x86_64`](https://github.com/DoctorLestrange/SvagView/releases)
+- **Standalone Binary**: [`svagview-v0.1.1-linux-x86_64`](https://github.com/DoctorLestrange/SvagView/releases)
 
 ### Install with Cargo
 If you have Rust installed, install SvagView directly via Cargo:

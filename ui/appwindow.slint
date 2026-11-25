@@ -14,6 +14,7 @@ component ToolButton inherits Rectangle {
     callback clicked();
 
     height: 32px;
+    horizontal-stretch: 0;
     border-radius: 6px;
 
     // Light / Dark dynamic colors
@@ -113,13 +114,12 @@ component ToolButton inherits Rectangle {
 
 export component MainWindow inherits Window {
     title: "SvagView - SVG Viewer";
-    icon: @image-url("../resources/SvagView_Logo_Icon.svg");
-    preferred-width: max(1240px, root.min-width);
+    icon: root.app_icon;
+    preferred-width: 1240px;
     preferred-height: 820px;
-    min-width: 820px + root.available_editors.length * 85px;
-    min-height: 520px;
     background: root.is_light_mode ? #f4f4f6 : #161619;
 
+    in-out property <image> app_icon: @image-url("../resources/SvagView_Logo_Icon.svg");
     in-out property <image> viewport_image;
     in-out property <image> banner_image;
     in-out property <bool> has_document: false;
@@ -334,7 +334,7 @@ export component MainWindow inherits Window {
                                 height: 32px;
 
                                 Image {
-                                    source: @image-url("../resources/SvagView_Logo_Icon.svg");
+                                    source: root.app_icon;
                                     width: 18px;
                                     height: 18px;
                                     image-fit: contain;
@@ -382,6 +382,7 @@ export component MainWindow inherits Window {
 
                     if root.has_document: Rectangle {
                         height: 32px;
+                        horizontal-stretch: 0;
                         border-radius: 6px;
                         background: root.is_light_mode ? #f4f4f6 : #26262c;
                         border-width: 1px;
@@ -397,6 +398,7 @@ export component MainWindow inherits Window {
                                 color: root.is_light_mode ? #71717a : #8e8e98;
                                 font-size: 12px;
                                 font-weight: 600;
+                                horizontal-stretch: 0;
                                 vertical-alignment: center;
                             }
 
@@ -405,6 +407,7 @@ export component MainWindow inherits Window {
                                 color: root.is_light_mode ? #18181b : #f4f4f5;
                                 font-size: 13px;
                                 font-weight: 600;
+                                min-width: 48px;
                                 overflow: elide;
                                 vertical-alignment: center;
                             }
@@ -414,6 +417,7 @@ export component MainWindow inherits Window {
 
                 // Right: Editor buttons & Actions
                 HorizontalLayout {
+                    horizontal-stretch: 1;
                     padding-right: 8px;
                     spacing: 8px;
                     alignment: end;
@@ -501,6 +505,8 @@ export component MainWindow inherits Window {
 
         // CENTER CANVAS
         canvas_rect := Rectangle {
+            min-width: 560px;
+            min-height: 430px;
             clip: true;
             background: root.is_light_mode ? #eaeaea : #161619;
 
@@ -652,6 +658,7 @@ export component MainWindow inherits Window {
                         color: root.is_light_mode ? #52525b : #a1a1aa;
                         font-size: 12px;
                         font-weight: 500;
+                        horizontal-stretch: 0;
                         vertical-alignment: center;
                     }
 
@@ -659,6 +666,9 @@ export component MainWindow inherits Window {
                         text: "Box: " + root.view_box_text;
                         color: root.is_light_mode ? #71717a : #8e8e98;
                         font-size: 12px;
+                        min-width: 55px;
+                        max-width: 240px;
+                        overflow: elide;
                         vertical-alignment: center;
                     }
 
@@ -810,7 +820,7 @@ export component MainWindow inherits Window {
                     HorizontalLayout {
                         spacing: 8px;
                         Image {
-                            source: @image-url("../resources/SvagView_Logo_Icon.svg");
+                            source: root.app_icon;
                             width: 22px;
                             height: 22px;
                             image-fit: contain;
@@ -960,7 +970,7 @@ export component MainWindow inherits Window {
                     alignment: space-between;
 
                     Text {
-                        text: "SvagView v0.1.0 • Built with Rust & Slint";
+                        text: "SvagView v0.1.1 • Built with Rust & Slint";
                         color: root.is_light_mode ? #a1a1aa : #71717a;
                         font-size: 12px;
                         vertical-alignment: center;
